@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+export DEBIAN_FRONTEND=noninteractive
+
+installpkg(){
+    dpkg-query --status $1 >/dev/null || apt-get install -y $1
+}
+
+apt-get update
+installpkg php5
+installpkg php5-mysql
+installpkg redis-server
+installpkg mysql-server
+installpkg apache2-utils
+installpkg apache2-suexec-custom
+
+echo "ServerName localhost" > /etc/apache2/conf-enabled/servername.conf
+a2enmod suexec
+a2dissite 000-default.conf
+cp /tmp/001-talented.conf /etc/apache2/sites-available
+a2ensite  001-talented.conf
+service apache2 restart
+
+bootstrapdb(){
+    cat <<EOF | mysql -uroot
+    DROP DATABASE IF EXISTS samtt;
+    CREATE DATABASE samtt;
+    USE samtt;
+    CREATE TABLE mo (
+      id int NOT NULL auto_increment,
+      msisdn varchar(20),
+      operatorid int,
+      shortcodeid int,
+      text varchar(255),
+      auth_token varchar(60),
+      created_at DATETIME,
+      PRIMARY KEY(id)
+    ) ;
+EOF
+}
+bootstrapdb
+
+populate_db() {
+    /tmp/populate_db 10000000| mysql -u root samtt
+}
+populate_db
